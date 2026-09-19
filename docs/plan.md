@@ -1,5 +1,9 @@
 # Incremental development plan
 
+## Current progress
+
+Milestones 1 and 2 are implemented: transport, identity, rooms, broadcasting, and a browser demo. Presence is next. See [Milestone 2 learning notes](milestone-2.md).
+
 ## Environment inspected
 
 The supplied workspace had no project files and was not a Git repository. Node 24.19.0 and Git were available; npm was not on PATH. A workspace-local npm was downloaded for dependency installation. On an ordinary Node 24 installation, use the standard npm commands in the README.

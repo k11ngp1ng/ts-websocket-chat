@@ -37,7 +37,10 @@ describe('WebSocket server', () => {
     const [a, b] = await Promise.all([connect(), connect()]);
     expect(a.welcome).toEqual({
       type: 'welcome',
-      payload: { connectionId: expect.any(String) },
+      payload: {
+        connectionId: expect.any(String),
+        rooms: ['general', 'developers', 'random'],
+      },
     });
     expect(b.welcome).not.toEqual(a.welcome);
     expect(app.wss.clients.size).toBe(2);

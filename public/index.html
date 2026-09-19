@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Realtime Chat</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">A SMALL REALTIME EXPERIMENT</p>
+          <h1>Realtime Chat<span>.</span></h1>
+        </div>
+        <p id="status" role="status">Disconnected</p>
+      </header>
+      <div class="layout">
+        <aside>
+          <form id="connect-form">
+            <label for="username">Your username</label>
+            <input
+              id="username"
+              autocomplete="off"
+              placeholder="Nathan"
+              minlength="3"
+              maxlength="20"
+              pattern="[A-Za-z0-9_]{3,20}"
+              required
+            />
+            <p class="hint">3–20 letters, numbers, or underscores.</p>
+            <button id="connect">Connect</button>
+            <button id="disconnect" type="button" class="secondary" disabled>
+              Disconnect
+            </button>
+          </form>
+          <hr />
+          <label for="room">Room</label>
+          <select id="room" disabled>
+            <option>Connect to load rooms</option>
+          </select>
+          <div class="actions">
+            <button id="join" disabled>Join</button
+            ><button id="leave" class="secondary" disabled>Leave</button>
+          </div>
+          <p class="hint" id="memberships">No rooms joined.</p>
+          <p class="hint">
+            Join several rooms if you like. Select a room to read and send
+            messages there.
+          </p>
+        </aside>
+        <section class="chat" aria-label="Chat">
+          <div class="chat-heading">
+            <h2 id="room-title">Choose a room</h2>
+            <span>Live conversation</span>
+          </div>
+          <ol id="messages" aria-live="polite" aria-label="Messages"></ol>
+          <p id="notice" role="status">
+            Connect, then join a room to start chatting.
+          </p>
+          <form id="message-form">
+            <label class="sr-only" for="message">Message</label
+            ><input
+              id="message"
+              placeholder="Write a message…"
+              maxlength="1000"
+              autocomplete="off"
+              disabled
+              required
+            /><button id="send" disabled>Send</button>
+          </form>
+        </section>
+      </div>
+      <footer>
+        Open a second window, choose another username, and join the same room.
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,21 +1,73 @@
-export type ClientEvent = { type: 'echo'; payload: { message: string } };
+export const ROOM_IDS = ['general', 'developers', 'random'] as const;
+export type RoomId = (typeof ROOM_IDS)[number];
+export type User = { connectionId: string; username: string };
+
+export type ClientEvent =
+  | { type: 'echo'; payload: { message: string } }
+  | { type: 'set_username'; payload: { username: string } }
+  | { type: 'join_room'; payload: { roomId: string } }
+  | { type: 'leave_room'; payload: { roomId: string } }
+  | { type: 'chat_message'; payload: { roomId: string; message: string } };
+
+export type ErrorCode =
+  | 'INVALID_MESSAGE'
+  | 'USERNAME_TAKEN'
+  | 'ALREADY_IDENTIFIED'
+  | 'USERNAME_REQUIRED'
+  | 'INVALID_ROOM'
+  | 'NOT_IN_ROOM';
 
 export type ServerEvent =
-  | { type: 'welcome'; payload: { connectionId: string } }
+  | {
+      type: 'welcome';
+      payload: { connectionId: string; rooms: readonly RoomId[] };
+    }
   | { type: 'echo'; payload: { message: string } }
-  | { type: 'error'; payload: { code: 'INVALID_MESSAGE'; message: string } };
+  | { type: 'identified'; payload: User }
+  | { type: 'room_joined' | 'room_left'; payload: { roomId: RoomId } }
+  | {
+      type: 'chat_message';
+      payload: {
+        id: string;
+        roomId: RoomId;
+        user: User;
+        message: string;
+        timestamp: string;
+      };
+    }
+  | { type: 'error'; payload: { code: ErrorCode; message: string } };
 
-export function isClientEvent(value: unknown): value is ClientEvent {
-  if (typeof value !== 'object' || value === null) return false;
-  if (!('type' in value) || value.type !== 'echo') return false;
-  if (!('payload' in value)) return false;
-  const payload = value.payload;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+function validMessage(value: unknown): value is string {
   return (
-    typeof payload === 'object' &&
-    payload !== null &&
-    'message' in payload &&
-    typeof payload.message === 'string' &&
-    payload.message.trim().length > 0 &&
-    payload.message.length <= 1000
+    typeof value === 'string' && value.trim().length > 0 && value.length <= 1000
   );
+}
+export function isRoomId(value: string): value is RoomId {
+  return ROOM_IDS.some((room) => room === value);
+}
+export function isClientEvent(value: unknown): value is ClientEvent {
+  if (!isRecord(value) || !isRecord(value.payload)) return false;
+  const { type, payload } = value;
+  const validRoom =
+    typeof payload.roomId === 'string' &&
+    /^[a-z][a-z0-9-]{0,31}$/.test(payload.roomId);
+  switch (type) {
+    case 'echo':
+      return validMessage(payload.message);
+    case 'set_username':
+      return (
+        typeof payload.username === 'string' &&
+        /^[A-Za-z0-9_]{3,20}$/.test(payload.username)
+      );
+    case 'join_room':
+    case 'leave_room':
+      return validRoom;
+    case 'chat_message':
+      return validRoom && validMessage(payload.message);
+    default:
+      return false;
+  }
 }

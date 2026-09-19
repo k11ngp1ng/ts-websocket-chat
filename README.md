@@ -1,10 +1,22 @@
 # Realtime Chat
 
-A learning-first Node.js + TypeScript WebSocket project. **Milestone 1 only:** persistent connections, typed welcome/echo events, validation, and integration tests. Chat rooms and the browser interface come next.
+A small Node.js + TypeScript chat built with `ws` to understand persistent, bidirectional communication. **Milestone 2:** usernames, rooms, room-scoped broadcasting, and a minimal browser demo.
 
 ## Why I Built This
 
-The goal is to understand persistent bidirectional communication and explain the backend decisions, while keeping the complete codebase small enough to study.
+The goal is to understand realtime backend engineering and explain every important decision, while keeping the complete codebase small enough to study.
+
+## Features
+
+- Multiple simultaneous WebSocket connections.
+- Validated, case-insensitive unique usernames for each live session.
+- Join and leave `general`, `developers`, and `random`; join multiple rooms.
+- Broadcast only to room members, including the sender.
+- Server-generated sender identity, message IDs, and timestamps.
+- Disconnect cleanup, payload limits, structured logs, and typed errors.
+- Minimal browser interface with manual disconnect/connect.
+
+Presence, typing, heartbeat, and automatic reconnection are future milestones.
 
 ## Running Locally
 
@@ -15,7 +27,7 @@ npm ci
 npm run dev
 ```
 
-The server listens at `ws://127.0.0.1:3000/ws`. Set `PORT` to change the port. It binds to loopback for this local milestone. An ordinary browser navigation returns HTTP 404; there is no frontend yet.
+Open **http://127.0.0.1:3000**. Set `PORT` to change the port. The WebSocket endpoint is `/ws`; the server binds to loopback for local development.
 
 For compiled execution:
 
@@ -24,64 +36,58 @@ npm run build
 npm start
 ```
 
-Node 24 runs the development TypeScript directly by stripping supported type syntax. This does **not** type-check it; `npm run typecheck` is mandatory. The build emits JavaScript and rewrites relative `.ts` imports to `.js`.
+Keep `public/` alongside `dist/` when running the compiled server. Node 24 runs development TypeScript by stripping supported type syntax; this does not type-check it. The build emits JavaScript and rewrites relative `.ts` imports to `.js`.
 
-## Try a Persistent Connection
+## Two-Window Demo
 
-In another terminal run `node`, then paste:
+1. Open the app in two browser windows.
+2. Connect as `Nathan` in one and `Grace` in the other.
+3. Select `developers` and click **Join** in both.
+4. Send a message and see the same server event appear in both windows.
+5. Leave in one window; new messages no longer arrive there.
+6. Disconnect and connect again; choose a room and rejoin explicitly.
 
-```js
-const socket = new WebSocket('ws://127.0.0.1:3000/ws');
-socket.onmessage = (event) => console.log(JSON.parse(event.data));
-socket.onopen = () =>
-  socket.send(
-    JSON.stringify({
-      type: 'echo',
-      payload: { message: 'Hello!' },
-    }),
-  );
-```
-
-After it connects, send another event through the **same** object:
-
-```js
-socket.send(
-  JSON.stringify({ type: 'echo', payload: { message: 'Still here' } }),
-);
-socket.close(1000, 'Done');
-```
-
-Use two terminals to demonstrate simultaneous clients. Echo replies return only to their sender; broadcasting is a later milestone.
+The browser keeps at most 200 received messages per room in memory. There is no server history, offline delivery, persistence, or automatic retry. Switching the selected room does not leave other joined rooms.
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-  A[Client A] <-->|WebSocket /ws| H[Node HTTP server + ws]
-  B[Client B] <-->|WebSocket /ws| H
-  H --> V[Runtime validation]
-  V --> E[Typed echo response to sender]
+flowchart TD
+  C[Browser clients] <-->|WebSocket /ws| S[Node HTTP + ws]
+  S --> V[Runtime protocol validation]
+  V --> H[Message handler]
+  H --> U[Connection manager / usernames]
+  H --> R[Room manager / membership sets]
+  R --> B[Broadcast to members]
+  B --> C
 ```
 
-`src/server.ts` starts the process and handles signals. `src/app.ts` owns transport setup and lifecycle. `src/types/protocol.ts` defines wire types and validates untrusted data. A factory lets each integration test use an ephemeral port without starting the CLI entry point.
+`server.ts` owns process startup; `app.ts` wires transport, static assets, and cleanup. Focused managers own identity and room membership. The handler authorizes and dispatches events. The browser uses its native WebSocket API; Express and frontend frameworks are unnecessary here.
+
+## WebSocket Flow
+
+The browser requests HTTP Upgrade, `ws` accepts, and the connection stays open. The server sends `welcome` with a connection ID and available rooms. The client sets its username and joins a room. On chat events, the server validates the payload, verifies identity and membership, creates the outgoing event, and sends it to every current room member.
 
 ## Message Protocol
 
-Server immediately sends:
+Client events:
 
 ```json
-{ "type": "welcome", "payload": { "connectionId": "server-generated UUID" } }
+{ "type": "set_username", "payload": { "username": "Nathan" } }
+{ "type": "join_room", "payload": { "roomId": "developers" } }
+{ "type": "chat_message", "payload": { "roomId": "developers", "message": "Hello!" } }
+{ "type": "leave_room", "payload": { "roomId": "developers" } }
 ```
 
-Client sends, and server echoes:
+Each line above is a separate WebSocket message. The server acknowledges identity with `identified` and membership operations with `room_joined` / `room_left`. Chat broadcasts contain `id`, `roomId`, `user: { connectionId, username }`, `message`, and `timestamp`. An `echo` event remains available for diagnostics; it is not a heartbeat.
 
-```json
-{ "type": "echo", "payload": { "message": "Hello!" } }
-```
+Usernames allow 3–20 ASCII letters, digits, or underscores. They are fixed until disconnect and compared case-insensitively. Chat text must be nonblank and at most 1,000 JavaScript string code units. Extra fields are ignored; sender identity comes from the server's connection record.
 
-Only text JSON is accepted. The message must contain a nonblank string of at most 1,000 JavaScript string code units. Extra fields are ignored and never echoed. Invalid JSON, shapes, or types produce an `error` event with code `INVALID_MESSAGE`; the connection stays usable. Messages over 4,096 bytes are closed by `ws` with code 1009. Binary application messages are rejected.
+Malformed JSON, binary application messages, and invalid shapes produce `INVALID_MESSAGE`. Other error codes are `USERNAME_TAKEN`, `ALREADY_IDENTIFIED`, `USERNAME_REQUIRED`, `INVALID_ROOM`, and `NOT_IN_ROOM`. Errors use `{ type: 'error', payload: { code, message } }`. Incoming messages over 4,096 bytes close with code 1009.
 
-## Checks
+## Tech Stack and Tests
+
+Node.js 24, TypeScript, `ws`, Vitest, ESLint, TypeScript ESLint, and Prettier. Exact versions and a committed lockfile provide repeatable installation.
 
 ```sh
 npm run typecheck
@@ -91,23 +97,25 @@ npm run build
 npm run format:check
 ```
 
-Tests connect real `ws` clients over local TCP, checking concurrent connections, repeated exchanges, bad JSON and payloads, binary input, oversized messages, disconnect cleanup, wrong paths, and HTTP behavior. They register listeners before sending and use ephemeral ports instead of timing sleeps.
+Tests use real local TCP/WebSocket clients and ephemeral ports. They cover transport behavior, validation, room isolation, duplicate joins, identity spoof attempts, username conflicts, multi-room membership, and normal/abnormal disconnect cleanup. See [verification](docs/verification.md) for the latest executed checks.
 
 ## Key Engineering Decisions
 
-- `ws` is the only runtime dependency. Node's HTTP server is enough for Upgrade handling; Express would add little here.
-- Strict TypeScript plus runtime guards: TypeScript cannot validate network input after compilation.
-- No connection manager yet: the built-in `wss.clients` set tracks sockets for this milestone. Dedicated user and room maps become useful once identity and membership exist.
-- Structured lifecycle logs omit message bodies. Compression is disabled to keep resource use and protocol behavior simple.
-- Shutdown requests code 1001 closes, then terminates remaining peers after one second. This shutdown deadline is not a heartbeat.
-- Exact dependencies and a lockfile make installation repeatable. TypeScript 6 is an intentional compatibility exception: TypeScript ESLint 8.70.0 rejects TypeScript 7 in its peer range. Revisit together when supported.
+- `Map<connectionId, Connection>` locates sessions; a normalized username map enforces uniqueness.
+- `Map<RoomId, Set<connectionId>>` prevents duplicate membership. Disconnect scans three fixed rooms; a reverse index would add consistency work without useful benefit at this scale.
+- TypeScript discriminated unions describe events; runtime guards validate untrusted JSON.
+- Successful join/leave acknowledgements are idempotent. Chat broadcasts include the sender so all clients render the same authoritative event.
+- Client text uses `textContent`, not HTML interpolation. Static assets come from an explicit allowlist.
+- Incoming size and outgoing buffered-byte limits bound individual payloads and slow-client queues. These do not replace rate limits.
+- Shutdown requests code 1001 closes, then terminates remaining peers after one second. This is not a heartbeat.
+- TypeScript 6.0.3 is a compatibility exception: TypeScript ESLint 8.70.0 excludes TypeScript 7 from its declared peer range.
 
-## What This Milestone Teaches
+## What I Learned
 
-HTTP Upgrade, persistent sockets, server push, asynchronous event handlers, runtime validation, connection state, and integration testing. See [the connection walkthrough](docs/milestone-1.md) and [the development plan](docs/plan.md).
+[Milestone 1](docs/milestone-1.md) explains Upgrade, frames, persistent connections, the event loop, and lifecycle. [Milestone 2](docs/milestone-2.md) explains identity, Map/Set choices, authorization, broadcasting, cleanup, and test ordering. The [development plan](docs/plan.md) records the remaining milestones.
 
-## Future Milestones
+## Future Improvements
 
-Usernames, rooms, broadcasting, presence, a minimal browser demo, typing, heartbeat, reconnect/backoff, Docker, and GitHub Actions. These are planned, not implemented. No authentication, storage, or multi-process scaling is included. Origin restrictions, rate limits, and outbound backpressure need attention before public hosting; this milestone is a local demonstration.
+Room presence, typing indicators, ping/pong heartbeat, capped reconnection backoff with jitter, Docker, GitHub Actions, and final license selection. Origin policy and event rate limits need attention before public hosting. Anonymous usernames are not authenticated identity, and all state belongs to one process.
 
-Docker instructions, final portfolio claims, and a license will be added in later milestones. The repository is [ts-websocket-chat](https://github.com/k11ngp1ng/ts-websocket-chat). No hosted CI run is claimed yet.
+The repository is [ts-websocket-chat](https://github.com/k11ngp1ng/ts-websocket-chat). Docker and hosted CI are not implemented or claimed yet.

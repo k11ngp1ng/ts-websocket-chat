@@ -1,4 +1,12 @@
-# Milestone 1 verification
+# Verification history
+
+## Milestone 2
+
+Verified locally on 2026-09-19: 31 integration tests passed, strict type checking, ESLint, formatting, and compilation passed. Source and compiled entry points passed real-process welcome/echo/close smoke tests.
+
+The browser demo was checked with two independent tabs: connect as Nathan and Grace, join developers, exchange messages, render HTML-looking input as plain text, leave and stop receiving, disconnect, and manually connect again. No automatic reconnection, presence, typing, heartbeat, Docker, or CI is claimed.
+
+## Milestone 1 verification (historical)
 
 Verified locally on 2026-09-19 with Windows, Node 24.19.0, and workspace-local npm 12.0.2.
 
