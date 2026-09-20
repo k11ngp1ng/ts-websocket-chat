@@ -2,7 +2,7 @@
   color-scheme: light;
   font-family: system-ui, sans-serif;
   color: #192e34;
-  background: #f1f5f3;
+  background: #f2f3ed;
 }
 * {
   box-sizing: border-box;
@@ -11,8 +11,8 @@ body {
   margin: 0;
 }
 main {
-  max-width: 1100px;
-  margin: 64px auto;
+  max-width: 1200px;
+  margin: 40px auto;
   padding: 0 24px;
 }
 header {
@@ -44,15 +44,16 @@ h1 span {
 }
 .layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 280px minmax(0, 1fr);
   background: #fff;
   border: 1px solid #dbe5e0;
-  border-radius: 16px;
+  border-radius: 24px;
+  box-shadow: 0 18px 60px #263b2910;
   overflow: hidden;
 }
 aside {
   padding: 26px;
-  background: #f9fbfa;
+  background: #f6f8f2;
   border-right: 1px solid #e2e9e5;
 }
 label {
@@ -146,7 +147,7 @@ footer {
   list-style: none;
   margin: 0;
   padding: 24px;
-  height: 340px;
+  height: 430px;
   overflow-y: auto;
 }
 #messages li {
@@ -204,9 +205,196 @@ footer {
     border-bottom: 1px solid #e2e9e5;
   }
   .chat-heading span {
-    display: none;
+    display: inline;
   }
   #messages {
     height: 260px;
+  }
+}
+.subtitle {
+  color: #687468;
+  font-size: 14px;
+  margin: 10px 0 0;
+}
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  font-weight: 750;
+  color: #65745e;
+  margin: 0 0 16px;
+}
+#status {
+  border: 1px solid #d7ddd3;
+  background: #fff;
+  white-space: nowrap;
+}
+#status::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #859084;
+  margin-right: 8px;
+}
+#status.connected::before {
+  background: #218361;
+  box-shadow: 0 0 0 4px #21836118;
+}
+.chat-heading {
+  min-height: 80px;
+}
+#presence {
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: #eff5e9;
+  color: #486b38;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.member-panel {
+  border-top: 1px solid #dce5df;
+  padding-top: 24px;
+  margin-top: 24px;
+}
+#members {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+}
+#members li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 10px;
+  color: #476b37;
+  background: #e3edd8;
+}
+#messages .message {
+  width: fit-content;
+  max-width: 85%;
+}
+#messages .own {
+  margin-left: auto;
+}
+#messages .own .meta {
+  text-align: right;
+}
+#messages .own .body {
+  background: #1d664e;
+  color: #fff;
+  border-radius: 12px 2px 12px 12px;
+}
+#messages .body {
+  border: 1px solid #e7ece4;
+}
+#messages .empty-state {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  margin: 0;
+}
+.empty-state::before {
+  content: '↗';
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: #ecf2e4;
+  color: #54773e;
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+.empty-state h3 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 8px 0;
+}
+.empty-state p {
+  max-width: 300px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #677664;
+}
+#typing {
+  min-height: 20px;
+  margin: 0 24px;
+  color: #356c52;
+  font-size: 12px;
+}
+#notice {
+  color: #667160;
+}
+#message-form {
+  padding-bottom: 8px;
+}
+#message {
+  background: #f8faf5;
+  min-width: 0;
+}
+#send {
+  white-space: nowrap;
+}
+.composer-hint {
+  font-size: 10px;
+  color: #6c7667;
+  margin: 0 24px 20px;
+}
+button:not(:disabled):hover {
+  filter: brightness(0.93);
+}
+@media (max-width: 640px) {
+  header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  #status {
+    margin: 8px 0;
+  }
+  aside {
+    padding: 20px;
+  }
+  .member-panel {
+    margin-top: 16px;
+    padding-top: 16px;
+  }
+  #members {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 14px;
+    max-height: 110px;
+  }
+  #messages {
+    height: 330px;
+    padding: 18px;
+  }
+  .chat-heading {
+    padding: 18px;
+    flex-wrap: wrap;
+  }
+  .empty-state h3 {
+    font-size: 18px;
   }
 }

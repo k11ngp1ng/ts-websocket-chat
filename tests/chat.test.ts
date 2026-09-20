@@ -292,6 +292,78 @@ describe('room chat', () => {
     await fence(socket);
   });
 
+  it.each(['send', 'leave', 'disconnect', 'stop'])(
+    'scopes typing to peers and clears it on %s',
+    async (action) => {
+      const a = await connect('Nathan');
+      const b = await connect('Grace');
+      const c = await connect('Linus');
+      await join(a.socket);
+      const arrival = receive(a.socket);
+      await join(b.socket);
+      await arrival;
+      await join(c.socket, 'random');
+      a.socket.send(
+        JSON.stringify({
+          type: 'typing_start',
+          payload: { roomId: 'developers', user: { username: 'Fake' } },
+        }),
+      );
+      expect(await receive(b.socket)).toEqual({
+        type: 'typing_start',
+        payload: {
+          roomId: 'developers',
+          user: { connectionId: a.id, username: 'Nathan' },
+        },
+      });
+      a.socket.send(
+        JSON.stringify({
+          type: 'typing_start',
+          payload: { roomId: 'developers' },
+        }),
+      );
+      await fence(a.socket);
+      await fence(b.socket);
+      await fence(c.socket);
+      if (action === 'disconnect') a.socket.terminate();
+      else if (action === 'send')
+        await request(a.socket, 'chat_message', {
+          roomId: 'developers',
+          message: 'done',
+        });
+      else if (action === 'leave')
+        await request(a.socket, 'leave_room', { roomId: 'developers' });
+      else
+        a.socket.send(
+          JSON.stringify({
+            type: 'typing_stop',
+            payload: { roomId: 'developers' },
+          }),
+        );
+      expect(await receive(b.socket)).toMatchObject({
+        type: 'typing_stop',
+        payload: { user: { connectionId: a.id } },
+      });
+    },
+  );
+
+  it('rejects typing before identification, outside membership, and in invalid rooms', async () => {
+    const { socket } = await connect();
+    expect(
+      await request(socket, 'typing_start', { roomId: 'general' }),
+    ).toMatchObject({ payload: { code: 'USERNAME_REQUIRED' } });
+    await request(socket, 'set_username', { username: 'Nathan' });
+    expect(
+      await request(socket, 'typing_start', { roomId: 'general' }),
+    ).toMatchObject({ payload: { code: 'NOT_IN_ROOM' } });
+    expect(
+      await request(socket, 'typing_stop', { roomId: 'unknown' }),
+    ).toMatchObject({ payload: { code: 'INVALID_ROOM' } });
+    expect(await request(socket, 'typing_start', { roomId: 5 })).toMatchObject({
+      payload: { code: 'INVALID_MESSAGE' },
+    });
+  });
+
   it('serves the browser demo and only explicitly allowed assets', async () => {
     const base = url.replace('ws:', 'http:').replace('/ws', '');
     for (const [path, contentType] of [

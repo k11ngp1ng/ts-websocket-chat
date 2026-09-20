@@ -9,6 +9,7 @@ import { log } from '../utils/logger.ts';
 import { ConnectionManager, type Connection } from './connection-manager.ts';
 import { RoomManager } from './room-manager.ts';
 import { send } from './send.ts';
+import type { TypingManager } from './typing-manager.ts';
 
 function userFor(connection: Connection) {
   return { connectionId: connection.id, username: connection.username! };
@@ -55,6 +56,7 @@ export function handleMessage(
   event: ClientEvent,
   connections: ConnectionManager,
   rooms: RoomManager,
+  typing: TypingManager,
 ) {
   if (event.type === 'echo') {
     send(connection, {
@@ -106,6 +108,7 @@ export function handleMessage(
     }
     log('room_joined', { connectionId: connection.id, roomId });
   } else if (event.type === 'leave_room') {
+    typing.stop(roomId, connection.id);
     const left = rooms.leave(roomId, connection.id);
     send(connection, { type: 'room_left', payload: { roomId } });
     if (left) {
@@ -117,13 +120,26 @@ export function handleMessage(
       );
     }
     log('room_left', { connectionId: connection.id, roomId });
-  } else {
+  } else if (
+    event.type === 'chat_message' ||
+    event.type === 'typing_start' ||
+    event.type === 'typing_stop'
+  ) {
     if (!rooms.has(roomId, connection.id))
       return reject(
         connection,
         'NOT_IN_ROOM',
         'Join the room before sending a message.',
       );
+    if (event.type === 'typing_start') {
+      typing.start(roomId, userFor(connection));
+      return;
+    }
+    if (event.type === 'typing_stop') {
+      typing.stop(roomId, connection.id);
+      return;
+    }
+    typing.stop(roomId, connection.id);
     const outgoing: ServerEvent = {
       type: 'chat_message',
       payload: {

@@ -1,6 +1,6 @@
 # Realtime Chat
 
-A small Node.js + TypeScript chat built with `ws` to understand persistent, bidirectional communication. **Milestone 2:** usernames, rooms, room-scoped broadcasting, and a minimal browser demo.
+A small Node.js + TypeScript chat built with `ws` to understand persistent, bidirectional communication. **Milestone 4:** room chat, presence, typing indicators, and a responsive browser demo.
 
 ## Why I Built This
 
@@ -17,7 +17,7 @@ The goal is to understand realtime backend engineering and explain every importa
 - Disconnect cleanup, payload limits, structured logs, and typed errors.
 - Minimal browser interface with manual disconnect/connect.
 
-Typing, heartbeat, and automatic reconnection are future milestones.
+Typing indicators are scoped to room peers, throttled by the client, and expired by the server. Heartbeat and automatic reconnection are future milestones.
 
 ## Running Locally
 
@@ -118,6 +118,8 @@ Tests use real local TCP/WebSocket clients and ephemeral ports. They cover trans
 
 ## Future Improvements
 
-Typing indicators, ping/pong heartbeat, capped reconnection backoff with jitter, Docker, GitHub Actions, and final license selection. Origin policy and event rate limits need attention before public hosting. Anonymous usernames are not authenticated identity, and all state belongs to one process.
+Ping/pong heartbeat, capped reconnection backoff with jitter, Docker, GitHub Actions, and final license selection. Origin policy and event rate limits need attention before public hosting. Anonymous usernames are not authenticated identity, and all state belongs to one process.
+
+See [Milestone 4](docs/milestone-4.md) for the typing protocol, timing choices, and frontend changes.
 
 The repository is [ts-websocket-chat](https://github.com/k11ngp1ng/ts-websocket-chat). Docker and hosted CI are not implemented or claimed yet.

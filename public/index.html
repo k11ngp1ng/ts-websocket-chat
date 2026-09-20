@@ -11,13 +11,17 @@
     <main>
       <header>
         <div>
-          <p class="eyebrow">A SMALL REALTIME EXPERIMENT</p>
+          <p class="eyebrow">GOOD CONVERSATIONS START HERE</p>
           <h1>Realtime Chat<span>.</span></h1>
+          <p class="subtitle">
+            A little space to connect. One message at a time.
+          </p>
         </div>
         <p id="status" role="status">Disconnected</p>
       </header>
       <div class="layout">
         <aside>
+          <p class="section-label">01 / YOUR SPACE</p>
           <form id="connect-form">
             <label for="username">Your username</label>
             <input
@@ -36,6 +40,7 @@
             </button>
           </form>
           <hr />
+          <p class="section-label">02 / FIND YOUR ROOM</p>
           <label for="room">Room</label>
           <select id="room" disabled>
             <option>Connect to load rooms</option>
@@ -49,6 +54,10 @@
             Join several rooms if you like. Select a room to read and send
             messages there.
           </p>
+          <div class="member-panel">
+            <p class="section-label">IN THIS ROOM</p>
+            <ul id="members" aria-label="Online members"></ul>
+          </div>
         </aside>
         <section class="chat" aria-label="Chat">
           <div class="chat-heading">
@@ -56,6 +65,7 @@
             <span id="presence">No members</span>
           </div>
           <ol id="messages" aria-live="polite" aria-label="Messages"></ol>
+          <p id="typing" role="status" aria-live="polite"></p>
           <p id="notice" role="status">
             Connect, then join a room to start chatting.
           </p>
@@ -68,8 +78,9 @@
               autocomplete="off"
               disabled
               required
-            /><button id="send" disabled>Send</button>
+            /><button id="send" disabled>Send ↗</button>
           </form>
+          <p class="composer-hint">Enter to send · Make yourself at home.</p>
         </section>
       </div>
       <footer>

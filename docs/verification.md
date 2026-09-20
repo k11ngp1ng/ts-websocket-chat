@@ -1,5 +1,9 @@
 # Verification history
 
+## Milestone 4
+
+2026-09-20: 40 tests passed, including typing lifecycle integration and lease expiry tests. Strict types, lint, formatting, and build passed. Two browser tabs confirmed typing visibility and clearing on message delivery. Direct TypeScript startup and compiled-process smoke tests passed.
+
 ## Milestone 3
 
 Verified locally on 2026-09-20: 33 integration tests passed, strict type checking, ESLint, formatting, and compilation passed. Tests cover presence snapshots, room-scoped joined/left updates, no unrelated-room updates, and disconnect departures. The browser demo was checked with Nathan and Grace joining `general` (both showed two online users) and Grace leaving (Nathan immediately showed one).

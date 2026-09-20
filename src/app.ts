@@ -12,6 +12,7 @@ import {
   reject,
 } from './websocket/message-handler.ts';
 import { send } from './websocket/send.ts';
+import { TypingManager } from './websocket/typing-manager.ts';
 
 const assets = new Map([
   ['/', { file: 'index.html', type: 'text/html; charset=utf-8' }],
@@ -22,6 +23,9 @@ const assets = new Map([
 export function createChatServer() {
   const connections = new ConnectionManager();
   const rooms = new RoomManager();
+  const typing = new TypingManager((roomId, event, exclude) =>
+    broadcastToRoom(roomId, event, connections, rooms, exclude),
+  );
   const http = createServer((request, response) => {
     const asset = assets.get((request.url ?? '').split('?')[0]!);
     if (!asset || (request.method !== 'GET' && request.method !== 'HEAD')) {
@@ -61,6 +65,7 @@ export function createChatServer() {
       log('client_error', { connectionId, message: error.message }),
     );
     socket.on('close', (code) => {
+      typing.remove(connectionId);
       const leftRooms = rooms.remove(connectionId);
       if (connection.username) {
         const user = { connectionId, username: connection.username };
@@ -91,7 +96,7 @@ export function createChatServer() {
         return invalid();
       }
       if (!isClientEvent(value)) return invalid();
-      handleMessage(connection, value, connections, rooms);
+      handleMessage(connection, value, connections, rooms, typing);
     });
     log('client_connected', { connectionId });
     send(connection, {
@@ -101,6 +106,7 @@ export function createChatServer() {
   });
 
   async function close(): Promise<void> {
+    typing.close();
     const deadline = setTimeout(() => {
       for (const socket of wss.clients) socket.terminate();
     }, 1000);

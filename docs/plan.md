@@ -2,7 +2,7 @@
 
 ## Current progress
 
-Milestones 1–3 are implemented: transport, identity, rooms, broadcasting, browser demo, and room presence. Typing indicators are next. See [Milestone 3 learning notes](milestone-3.md).
+Milestones 1–4 are implemented, including typing indicators and a refined browser demo. Heartbeat is next. See [Milestone 4 learning notes](milestone-4.md).
 
 ## Environment inspected
 

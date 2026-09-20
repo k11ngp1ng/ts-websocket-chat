@@ -7,6 +7,8 @@ export type ClientEvent =
   | { type: 'set_username'; payload: { username: string } }
   | { type: 'join_room'; payload: { roomId: string } }
   | { type: 'leave_room'; payload: { roomId: string } }
+  | { type: 'typing_start'; payload: { roomId: string } }
+  | { type: 'typing_stop'; payload: { roomId: string } }
   | { type: 'chat_message'; payload: { roomId: string; message: string } };
 
 export type ErrorCode =
@@ -27,7 +29,7 @@ export type ServerEvent =
   | { type: 'room_joined' | 'room_left'; payload: { roomId: RoomId } }
   | { type: 'presence_snapshot'; payload: { roomId: RoomId; users: User[] } }
   | {
-      type: 'user_joined' | 'user_left';
+      type: 'user_joined' | 'user_left' | 'typing_start' | 'typing_stop';
       payload: { roomId: RoomId; user: User };
     }
   | {
@@ -69,6 +71,8 @@ export function isClientEvent(value: unknown): value is ClientEvent {
       );
     case 'join_room':
     case 'leave_room':
+    case 'typing_start':
+    case 'typing_stop':
       return validRoom;
     case 'chat_message':
       return validRoom && validMessage(payload.message);
