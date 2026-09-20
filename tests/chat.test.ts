@@ -8,6 +8,11 @@ import type { ServerEvent } from '../src/types/protocol.ts';
 describe('room chat', () => {
   let app: ReturnType<typeof createChatServer>;
   let url: string;
+  const queuedEvents = new WeakMap<WebSocket, ServerEvent[]>();
+  const waitingReceivers = new WeakMap<
+    WebSocket,
+    Array<(event: ServerEvent) => void>
+  >();
   beforeEach(async () => {
     app = createChatServer();
     app.http.listen(0, '127.0.0.1');
@@ -18,9 +23,23 @@ describe('room chat', () => {
     await app.close();
   });
 
+  function watch(socket: WebSocket) {
+    queuedEvents.set(socket, []);
+    waitingReceivers.set(socket, []);
+    socket.on('message', (data: RawData) => {
+      const event = JSON.parse(data.toString()) as ServerEvent;
+      const receiver = waitingReceivers.get(socket)!.shift();
+      if (receiver) receiver(event);
+      else queuedEvents.get(socket)!.push(event);
+    });
+  }
   async function receive(socket: WebSocket): Promise<ServerEvent> {
-    const [data] = (await once(socket, 'message')) as [RawData];
-    return JSON.parse(data.toString()) as ServerEvent;
+    const queued = queuedEvents.get(socket)!;
+    const event = queued.shift();
+    if (event) return event;
+    return new Promise((resolve) =>
+      waitingReceivers.get(socket)!.push(resolve),
+    );
   }
   async function request(socket: WebSocket, type: string, payload: unknown) {
     const response = receive(socket);
@@ -29,6 +48,7 @@ describe('room chat', () => {
   }
   async function connect(username?: string) {
     const socket = new WebSocket(url);
+    watch(socket);
     const welcome = await receive(socket);
     if (welcome.type !== 'welcome') throw new Error('Missing welcome');
     if (username)
@@ -41,6 +61,10 @@ describe('room chat', () => {
     expect(await request(socket, 'join_room', { roomId })).toEqual({
       type: 'room_joined',
       payload: { roomId },
+    });
+    expect(await receive(socket)).toMatchObject({
+      type: 'presence_snapshot',
+      payload: { roomId, users: expect.any(Array) },
     });
   }
   function record(socket: WebSocket) {
@@ -63,7 +87,12 @@ describe('room chat', () => {
     const b = await connect('Grace');
     const c = await connect('Linus');
     await join(a.socket);
+    const aSeesGrace = receive(a.socket);
     await join(b.socket);
+    expect(await aSeesGrace).toMatchObject({
+      type: 'user_joined',
+      payload: { roomId: 'developers', user: { connectionId: b.id } },
+    });
     await join(b.socket);
     await join(c.socket, 'random');
     const bEvents = record(b.socket);
@@ -135,9 +164,15 @@ describe('room chat', () => {
     const b = await connect('Grace');
     await join(a.socket);
     await join(a.socket, 'general');
+    const aSeesGraceInDevelopers = receive(a.socket);
     await join(b.socket);
+    expect(await aSeesGraceInDevelopers).toMatchObject({ type: 'user_joined' });
+    const aSeesGraceInGeneral = receive(a.socket);
     await join(b.socket, 'general');
+    expect(await aSeesGraceInGeneral).toMatchObject({ type: 'user_joined' });
+    const aSeesGraceLeave = receive(a.socket);
     await request(b.socket, 'leave_room', { roomId: 'developers' });
+    expect(await aSeesGraceLeave).toMatchObject({ type: 'user_left' });
     await request(b.socket, 'leave_room', { roomId: 'developers' });
     const events = record(b.socket);
     await request(a.socket, 'chat_message', {
@@ -186,6 +221,56 @@ describe('room chat', () => {
       ).toMatchObject({ payload: { code: 'NOT_IN_ROOM' } });
     },
   );
+
+  it('sends a room snapshot and room-scoped join/leave presence updates', async () => {
+    const a = await connect('Nathan');
+    const b = await connect('Grace');
+    const c = await connect('Linus');
+    await join(a.socket, 'developers');
+    const aSeesGrace = receive(a.socket);
+    await join(b.socket, 'developers');
+    expect(await aSeesGrace).toEqual({
+      type: 'user_joined',
+      payload: {
+        roomId: 'developers',
+        user: { connectionId: b.id, username: 'Grace' },
+      },
+    });
+    await join(c.socket, 'random');
+    await fence(a.socket);
+    const aSeesGraceLeave = receive(a.socket);
+    expect(
+      await request(b.socket, 'leave_room', { roomId: 'developers' }),
+    ).toEqual({
+      type: 'room_left',
+      payload: { roomId: 'developers' },
+    });
+    expect(await aSeesGraceLeave).toEqual({
+      type: 'user_left',
+      payload: {
+        roomId: 'developers',
+        user: { connectionId: b.id, username: 'Grace' },
+      },
+    });
+  });
+
+  it('notifies remaining room members when a connection drops', async () => {
+    const a = await connect('Nathan');
+    const b = await connect('Grace');
+    await join(a.socket, 'general');
+    const aSeesGrace = receive(a.socket);
+    await join(b.socket, 'general');
+    await aSeesGrace;
+    const aSeesDeparture = receive(a.socket);
+    b.socket.terminate();
+    expect(await aSeesDeparture).toEqual({
+      type: 'user_left',
+      payload: {
+        roomId: 'general',
+        user: { connectionId: b.id, username: 'Grace' },
+      },
+    });
+  });
 
   it.each([
     ['set_username', { username: 'ab' }],

@@ -1,5 +1,9 @@
 # Verification history
 
+## Milestone 3
+
+Verified locally on 2026-09-20: 33 integration tests passed, strict type checking, ESLint, formatting, and compilation passed. Tests cover presence snapshots, room-scoped joined/left updates, no unrelated-room updates, and disconnect departures. The browser demo was checked with Nathan and Grace joining `general` (both showed two online users) and Grace leaving (Nathan immediately showed one).
+
 ## Milestone 2
 
 Verified locally on 2026-09-19: 31 integration tests passed, strict type checking, ESLint, formatting, and compilation passed. Source and compiled entry points passed real-process welcome/echo/close smoke tests.

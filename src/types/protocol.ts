@@ -25,6 +25,11 @@ export type ServerEvent =
   | { type: 'echo'; payload: { message: string } }
   | { type: 'identified'; payload: User }
   | { type: 'room_joined' | 'room_left'; payload: { roomId: RoomId } }
+  | { type: 'presence_snapshot'; payload: { roomId: RoomId; users: User[] } }
+  | {
+      type: 'user_joined' | 'user_left';
+      payload: { roomId: RoomId; user: User };
+    }
   | {
       type: 'chat_message';
       payload: {

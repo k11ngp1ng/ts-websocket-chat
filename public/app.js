@@ -4,6 +4,7 @@ const room = byId('room');
 const message = byId('message');
 const joined = new Set();
 const history = new Map();
+const presence = new Map();
 let socket;
 let identified = false;
 
@@ -26,6 +27,10 @@ function update() {
   byId('room-title').textContent = identified
     ? `#${room.value}`
     : 'Choose a room';
+  const users = presence.get(room.value) ?? [];
+  byId('presence').textContent = users.length
+    ? `${users.length} online · ${users.map((user) => user.username).join(', ')}`
+    : 'No members';
 }
 function renderMessages() {
   const list = byId('messages');
@@ -57,6 +62,7 @@ byId('connect-form').addEventListener('submit', (event) => {
   const name = username.value;
   joined.clear();
   history.clear();
+  presence.clear();
   renderMessages();
   socket = new WebSocket(
     `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`,
@@ -84,7 +90,23 @@ byId('connect-form').addEventListener('submit', (event) => {
       notice(`Joined #${payload.roomId}.`);
     } else if (type === 'room_left') {
       joined.delete(payload.roomId);
+      presence.delete(payload.roomId);
       notice(`Left #${payload.roomId}.`);
+    } else if (type === 'presence_snapshot') {
+      presence.set(payload.roomId, payload.users);
+    } else if (type === 'user_joined') {
+      const users = presence.get(payload.roomId) ?? [];
+      if (
+        !users.some((user) => user.connectionId === payload.user.connectionId)
+      ) {
+        presence.set(payload.roomId, [...users, payload.user]);
+      }
+    } else if (type === 'user_left') {
+      const users = presence.get(payload.roomId) ?? [];
+      presence.set(
+        payload.roomId,
+        users.filter((user) => user.connectionId !== payload.user.connectionId),
+      );
     } else if (type === 'chat_message') {
       const items = history.get(payload.roomId) ?? [];
       items.push(payload);
@@ -100,6 +122,7 @@ byId('connect-form').addEventListener('submit', (event) => {
   socket.addEventListener('close', () => {
     identified = false;
     joined.clear();
+    presence.clear();
     byId('status').textContent = 'Disconnected';
     update();
   });

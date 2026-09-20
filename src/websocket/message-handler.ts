@@ -10,6 +10,38 @@ import { ConnectionManager, type Connection } from './connection-manager.ts';
 import { RoomManager } from './room-manager.ts';
 import { send } from './send.ts';
 
+function userFor(connection: Connection) {
+  return { connectionId: connection.id, username: connection.username! };
+}
+
+export function broadcastToRoom(
+  roomId: import('../types/protocol.ts').RoomId,
+  event: ServerEvent,
+  connections: ConnectionManager,
+  rooms: RoomManager,
+  excludedConnectionId?: string,
+) {
+  for (const id of rooms.members(roomId)) {
+    if (id === excludedConnectionId) continue;
+    const recipient = connections.get(id);
+    if (recipient) send(recipient, event);
+  }
+}
+
+function currentUsers(
+  roomId: import('../types/protocol.ts').RoomId,
+  connections: ConnectionManager,
+  rooms: RoomManager,
+) {
+  return [...rooms.members(roomId)]
+    .map((id) => connections.get(id))
+    .filter((connection): connection is Connection =>
+      Boolean(connection?.username),
+    )
+    .map(userFor)
+    .sort((a, b) => a.username.localeCompare(b.username));
+}
+
 export function reject(
   connection: Connection,
   code: ErrorCode,
@@ -57,12 +89,33 @@ export function handleMessage(
       'Choose general, developers, or random.',
     );
   if (event.type === 'join_room') {
-    rooms.join(roomId, connection.id);
+    const joined = rooms.join(roomId, connection.id);
     send(connection, { type: 'room_joined', payload: { roomId } });
+    send(connection, {
+      type: 'presence_snapshot',
+      payload: { roomId, users: currentUsers(roomId, connections, rooms) },
+    });
+    if (joined) {
+      broadcastToRoom(
+        roomId,
+        { type: 'user_joined', payload: { roomId, user: userFor(connection) } },
+        connections,
+        rooms,
+        connection.id,
+      );
+    }
     log('room_joined', { connectionId: connection.id, roomId });
   } else if (event.type === 'leave_room') {
-    rooms.leave(roomId, connection.id);
+    const left = rooms.leave(roomId, connection.id);
     send(connection, { type: 'room_left', payload: { roomId } });
+    if (left) {
+      broadcastToRoom(
+        roomId,
+        { type: 'user_left', payload: { roomId, user: userFor(connection) } },
+        connections,
+        rooms,
+      );
+    }
     log('room_left', { connectionId: connection.id, roomId });
   } else {
     if (!rooms.has(roomId, connection.id))
@@ -81,10 +134,7 @@ export function handleMessage(
         timestamp: new Date().toISOString(),
       },
     };
-    for (const id of rooms.members(roomId)) {
-      const recipient = connections.get(id);
-      if (recipient) send(recipient, outgoing);
-    }
+    broadcastToRoom(roomId, outgoing, connections, rooms);
     log('message_sent', { connectionId: connection.id, roomId });
   }
 }

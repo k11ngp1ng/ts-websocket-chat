@@ -8,16 +8,23 @@ export class RoomManager {
     return this.rooms.get(roomId)!;
   }
   join(roomId: RoomId, connectionId: string) {
-    this.rooms.get(roomId)!.add(connectionId);
+    const members = this.rooms.get(roomId)!;
+    if (members.has(connectionId)) return false;
+    members.add(connectionId);
+    return true;
   }
   leave(roomId: RoomId, connectionId: string) {
-    this.rooms.get(roomId)!.delete(connectionId);
+    return this.rooms.get(roomId)!.delete(connectionId);
   }
   has(roomId: RoomId, connectionId: string) {
     return this.members(roomId).has(connectionId);
   }
-  remove(connectionId: string) {
+  remove(connectionId: string): RoomId[] {
     // Three fixed rooms make a scan simpler than maintaining a second membership index.
-    for (const members of this.rooms.values()) members.delete(connectionId);
+    const leftRooms: RoomId[] = [];
+    for (const [roomId, members] of this.rooms) {
+      if (members.delete(connectionId)) leftRooms.push(roomId);
+    }
+    return leftRooms;
   }
 }

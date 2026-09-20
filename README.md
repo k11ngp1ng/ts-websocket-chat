@@ -12,11 +12,12 @@ The goal is to understand realtime backend engineering and explain every importa
 - Validated, case-insensitive unique usernames for each live session.
 - Join and leave `general`, `developers`, and `random`; join multiple rooms.
 - Broadcast only to room members, including the sender.
+- Room presence: snapshots on join plus live joined/left updates for room members.
 - Server-generated sender identity, message IDs, and timestamps.
 - Disconnect cleanup, payload limits, structured logs, and typed errors.
 - Minimal browser interface with manual disconnect/connect.
 
-Presence, typing, heartbeat, and automatic reconnection are future milestones.
+Typing, heartbeat, and automatic reconnection are future milestones.
 
 ## Running Locally
 
@@ -44,8 +45,9 @@ Keep `public/` alongside `dist/` when running the compiled server. Node 24 runs 
 2. Connect as `Nathan` in one and `Grace` in the other.
 3. Select `developers` and click **Join** in both.
 4. Send a message and see the same server event appear in both windows.
-5. Leave in one window; new messages no longer arrive there.
-6. Disconnect and connect again; choose a room and rejoin explicitly.
+5. See the online member list change as the other user joins, leaves, or disconnects.
+6. Leave in one window; new messages no longer arrive there.
+7. Disconnect and connect again; choose a room and rejoin explicitly.
 
 The browser keeps at most 200 received messages per room in memory. There is no server history, offline delivery, persistence, or automatic retry. Switching the selected room does not leave other joined rooms.
 
@@ -79,7 +81,7 @@ Client events:
 { "type": "leave_room", "payload": { "roomId": "developers" } }
 ```
 
-Each line above is a separate WebSocket message. The server acknowledges identity with `identified` and membership operations with `room_joined` / `room_left`. Chat broadcasts contain `id`, `roomId`, `user: { connectionId, username }`, `message`, and `timestamp`. An `echo` event remains available for diagnostics; it is not a heartbeat.
+Each line above is a separate WebSocket message. The server acknowledges identity with `identified` and membership operations with `room_joined` / `room_left`. Joining also receives a `presence_snapshot`; remaining members receive `user_joined`. Leaving or disconnecting sends `user_left` to remaining room members. Chat broadcasts contain `id`, `roomId`, `user: { connectionId, username }`, `message`, and `timestamp`. An `echo` event remains available for diagnostics; it is not a heartbeat.
 
 Usernames allow 3–20 ASCII letters, digits, or underscores. They are fixed until disconnect and compared case-insensitively. Chat text must be nonblank and at most 1,000 JavaScript string code units. Extra fields are ignored; sender identity comes from the server's connection record.
 
@@ -102,7 +104,7 @@ Tests use real local TCP/WebSocket clients and ephemeral ports. They cover trans
 ## Key Engineering Decisions
 
 - `Map<connectionId, Connection>` locates sessions; a normalized username map enforces uniqueness.
-- `Map<RoomId, Set<connectionId>>` prevents duplicate membership. Disconnect scans three fixed rooms; a reverse index would add consistency work without useful benefit at this scale.
+- `Map<RoomId, Set<connectionId>>` prevents duplicate membership and supplies each room's live presence. Disconnect scans three fixed rooms; a reverse index would add consistency work without useful benefit at this scale.
 - TypeScript discriminated unions describe events; runtime guards validate untrusted JSON.
 - Successful join/leave acknowledgements are idempotent. Chat broadcasts include the sender so all clients render the same authoritative event.
 - Client text uses `textContent`, not HTML interpolation. Static assets come from an explicit allowlist.
@@ -116,6 +118,6 @@ Tests use real local TCP/WebSocket clients and ephemeral ports. They cover trans
 
 ## Future Improvements
 
-Room presence, typing indicators, ping/pong heartbeat, capped reconnection backoff with jitter, Docker, GitHub Actions, and final license selection. Origin policy and event rate limits need attention before public hosting. Anonymous usernames are not authenticated identity, and all state belongs to one process.
+Typing indicators, ping/pong heartbeat, capped reconnection backoff with jitter, Docker, GitHub Actions, and final license selection. Origin policy and event rate limits need attention before public hosting. Anonymous usernames are not authenticated identity, and all state belongs to one process.
 
 The repository is [ts-websocket-chat](https://github.com/k11ngp1ng/ts-websocket-chat). Docker and hosted CI are not implemented or claimed yet.

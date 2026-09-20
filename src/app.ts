@@ -6,7 +6,11 @@ import { isClientEvent, ROOM_IDS } from './types/protocol.ts';
 import { log } from './utils/logger.ts';
 import { ConnectionManager } from './websocket/connection-manager.ts';
 import { RoomManager } from './websocket/room-manager.ts';
-import { handleMessage, reject } from './websocket/message-handler.ts';
+import {
+  broadcastToRoom,
+  handleMessage,
+  reject,
+} from './websocket/message-handler.ts';
 import { send } from './websocket/send.ts';
 
 const assets = new Map([
@@ -57,7 +61,18 @@ export function createChatServer() {
       log('client_error', { connectionId, message: error.message }),
     );
     socket.on('close', (code) => {
-      rooms.remove(connectionId);
+      const leftRooms = rooms.remove(connectionId);
+      if (connection.username) {
+        const user = { connectionId, username: connection.username };
+        for (const roomId of leftRooms) {
+          broadcastToRoom(
+            roomId,
+            { type: 'user_left', payload: { roomId, user } },
+            connections,
+            rooms,
+          );
+        }
+      }
       connections.remove(connectionId);
       log('client_disconnected', { connectionId, code });
     });
